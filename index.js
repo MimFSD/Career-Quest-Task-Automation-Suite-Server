@@ -71,3 +71,38 @@ app.get('/All-brand', async (req, res) => {
   const result = await BransCollection.find().toArray()
   res.send(result)
 })
+if (startIndex + limit < total) {
+  results.next = {
+      page: page + 1,
+      limit: limit
+  };
+}
+
+if (startIndex > 0) {
+  results.previous = {
+      page: page - 1,
+      limit: limit
+  };
+}
+
+res.json(results);
+});
+
+
+
+
+await client.db("admin").command({ ping: 1 });
+console.log("Pinged your deployment. You successfully connected to MongoDB!");
+} finally {
+// Ensures that the client will close when you finish/error
+// await client.close();
+}
+}
+run().catch(console.dir);
+app.get('/', (req, res) => {
+res.send('Task is running');
+});
+
+app.listen(port, () => {
+console.log(`task port, ${port}`);
+});
