@@ -49,3 +49,15 @@ async function run() {
                 .toArray();
             res.send({ brandNames, categories });
         });
+       
+    } finally {
+     
+  }
+}
+run().catch(console.dir);
+app.get("/", (req, res) => {
+  res.send("Product Pulse is running...");
+});
+app.listen(port, () => {
+  console.log("Product Pulse server running on", port);
+});
