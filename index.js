@@ -1,146 +1,51 @@
-
-const BransCollection = client.db('Jobtask').collection('brand')
-const CategoryCollection = client.db('Jobtask').collection('category')
-
-
-
-app.get('/products', async (req, res) => {
-  const size = parseInt(req.query.size);
-  const page = parseInt(req.query.page) - 1;
-  const brands = req.query.brands || [];
-  const categories = req.query.categories || [];
-  const minPrice = parseFloat(req.query.minPrice);
-  const maxPrice = parseFloat(req.query.maxPrice);
-  const sorting = req.query.sorting
-  const search = req.query.search || ''
-  const query = {};
-  if (search) {
-    query.productName = { $regex: search, $options: 'i' };
-  }
-  const options = {
-    sort: {}
-  };
-  if (sorting === 'acs') {
-    options.sort.price = 1;
-  } else if (sorting === 'dcs') {
-    options.sort.price = -1;
-  } else if (sorting === 'date-acs') {
-    options.sort.creationDate = 1;
-  }
-  if (brands.length > 0) {
-    query.brandName = { $in: Array.isArray(brands) ? brands : [brands] };
-  }
-  if (categories.length > 0) {
-    query.category = { $in: Array.isArray(categories) ? categories : [categories] };
-  }
-  if (minPrice || maxPrice) {
-    query.price = { $gte: minPrice, $lte: maxPrice };
-  }
-  const result = await ProductsCollection
-    .find(query)
-    .sort(options.sort)
-    .skip(page * size)
-    .limit(size)
-    .toArray();
-  res.send(result);
+const express = require("express");
+const cors = require("cors");
+require("dotenv").config();
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const port = process.env.PORT || 5000;
+const products = require("./products.json");
+const app = express();
+// middleware
+app.use(express.json());
+//Must remove "/" from your production URL
+app.use(
+    cors({
+        origin: ["http://localhost:5173"],
+    }),
+);
+const uri = process.env.MONGODB_URI;
+// Create a MongoClient with a MongoClientOptions object to set the Stable API version
+const client = new MongoClient(uri, {
+    serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
+    },
 });
-app.get('/products-count', async (req, res) => {
-  const brands = req.query.brands || [];
-  const categories = req.query.categories || [];
-  const minPrice = parseFloat(req.query.minPrice) || 0;
-  const maxPrice = parseFloat(req.query.maxPrice) || Number.MAX_VALUE;
-  const search = req.query.search || ''
-  const query = {};
-  if (search) {
-    query.productName = { $regex: search, $options: 'i' };
-  }
-  if (brands.length > 0) {
-    query.brandName = { $in: Array.isArray(brands) ? brands : [brands] };
-  }
-  if (categories.length > 0) {
-    query.category = { $in: Array.isArray(categories) ? categories : [categories] };
-  }
-  if (minPrice || maxPrice) {
-    query.price = { $gte: minPrice, $lte: maxPrice };
-  }
-  const count = await ProductsCollection.countDocuments(query);
-  res.send({ count });
-})
-//Brands
-app.get('/All-brand', async (req, res) => {
-  const result = await BransCollection.find().toArray()
-  res.send(result)
-})
-if (startIndex + limit < total) {
-  results.next = {
-      page: page + 1,
-      limit: limit
-  };
-}
+async function run() {
+    try {
+        // Connect the client to the server	(optional starting in v4.7)
+        await client.connect();
+        // Send a ping to confirm a successful connection
+        const db = client.db("ProductPulseDB");
+        const productsCollection = db.collection("products");
 
-if (startIndex > 0) {
-  results.previous = {
-      page: page - 1,
-      limit: limit
-  };
-}
+        app.get("/seed", async (req, res) => {
+            await productsCollection.deleiteMany();
+            await productsCollection.deleteMany();
+            await productsCollection.insertMany(products);
+            return res.send({ message: "seed successfully" });
+        });
+@@ -77,6 +77,16 @@ async function run() {
+            res.send({ count });
+        });
 
-res.json(results);
-});
-
-
-
-
-await client.db("admin").command({ ping: 1 });
-console.log("Pinged your deployment. You successfully connected to MongoDB!");
-} finally {
-// Ensures that the client will close when you finish/error
-// await client.close();
-}
-}
-run().catch(console.dir);
-app.get('/', (req, res) => {
-res.send('Task is running');
-});
-
-app.listen(port, () => {
-console.log(`task port, ${port}`);
-});
-await client.db("admin").command({ ping: 1 });
-console.log("Pinged your deployment. You successfully connected to MongoDB!");
-} finally {
-// Ensures that the client will close when you finish/error
-// await client.close();
-}
-}
-// app.get('/products', async (req, res) => {
-    //     const page = parseInt(req.query.page) || 1;
-    //     const limit = parseInt(req.query.limit) || 10;
-
-    //     const startIndex = (page - 1) * limit;
-    //     const total = await productCollection.countDocuments();
-    //     const products = await productCollection.find().limit(limit).skip(startIndex).toArray();
-
-    //     const results = {
-    //         total,
-    //         page,
-    //         limit,
-    //         results: products
-    //     };
-
-    //     if (startIndex + limit < total) {
-    //         results.next = {
-    //             page: page + 1,
-    //             limit: limit
-    //         };
-    //     }
-
-    //     if (startIndex > 0) {
-    //         results.previous = {
-    //             page: page - 1,
-    //             limit: limit
-    //         };
-    //     }
-
-    //     res.json(results);
-    // });
+        app.get("/categorization", async (req, res) => {
+            const brandNames = await productsCollection
+                .aggregate([{ $group: { _id: "$brand" } }, { $project: { _id: 0, brand: "$_id" } }])
+                .toArray();
+            const categories = await productsCollection
+                .aggregate([{ $group: { _id: "$category" } }, { $project: { _id: 0, category: "$_id" } }])
+                .toArray();
+            res.send({ brandNames, categories });
+        });
